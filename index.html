@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EpicSite!</title>
+  <style>
+    #canvas {
+      position: relative;
+      width: 600px;
+      height: 400px;
+      border: 1px solid #000;
+    }
+    .image {
+      position: absolute;
+    }
+  </style>
+</head>
+<body>
+  <h1>Bopl Place</h1>
+  <div id="canvas"></div>
+  <select id="imageList">
+    <option value="image1.jpg">Menu</option>
+    <option value="image2.jpg">Game Map</option>
+    <!-- Add more options as needed -->
+  </select>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.3.2/socket.io.js"></script>
+  <script>
+    const socket = io();
+
+    const canvas = document.getElementById('canvas');
+    const imageList = document.getElementById('imageList');
+
+    let images = {};
+
+    function addImage(image) {
+      const imgElement = document.createElement('img');
+      imgElement.src = image.imageUrl;
+      imgElement.className = 'image';
+      imgElement.style.left = `${image.x}px`;
+      imgElement.style.top = `${image.y}px`;
+      imgElement.draggable = true;
+      imgElement.addEventListener('dragend', (event) => {
+        const rect = canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        socket.emit('moveImage', { id: image.id, x, y });
+      });
+      imgElement.addEventListener('contextmenu', (event) => {
+        event.preventDefault();
+        canvas.removeChild(imgElement);
+        delete images[image.id];
+        socket.emit('removeImage', image.id);
+      });
+      canvas.appendChild(imgElement);
+      images[image.id] = imgElement;
+    }
+
+    imageList.addEventListener('change', () => {
+      const imageUrl = imageList.value;
+      const rect = canvas.getBoundingClientRect();
+      const x = rect.width / 2; // Place at the center of the canvas
+      const y = rect.height / 2; // Place at the center of the canvas
+      const newImage = { id: Date.now(), x, y, imageUrl };
+      addImage(newImage);
+      socket.emit('placeImage', newImage);
+    });
+
+    socket.on('canvasState', (canvasState) => {
+      // Remove existing images from the canvas
+      Object.values(images).forEach((img) => canvas.removeChild(img));
+      images = {};
+      // Add images from the updated canvas state
+      canvasState.images.forEach(addImage);
+    });
+  </script>
+</body>
+</html>
