@@ -4,6 +4,7 @@ const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const path = require('path');
+const { saveCanvasState, backupCanvasState, loadCanvasState } = require('./management');
 
 const PORT = process.env.PORT || 3000;
 
@@ -15,57 +16,56 @@ const io = socketIo(server);
 app.use(express.static(path.join(__dirname)));
 
 // Maintain the state of the canvas
-let canvasState = {
+let canvasState = loadCanvasState() || {
     images: [
       { id: 1, x: 100, y: 100, imageUrl: 'https://via.placeholder.com/150' },
       { id: 2, x: 200, y: 200, imageUrl: 'https://via.placeholder.com/150' },
       { id: 3, x: 300, y: 300, imageUrl: 'https://via.placeholder.com/150' }
     ]
   };
-  
-// Function to broadcast canvas state to all clients
+
+// Send Canvas State
 function broadcastCanvasState() {
   io.emit('canvasState', canvasState);
+  saveCanvasState(canvasState);
+  console.log("Broadcasting Canvas State to all clients");
 }
 
 io.on('connection', (socket) => {
-  console.log('New client connected');
+  console.log('New client connected:', socket.id);
 
-  // Send the current canvas state to the newly connected client
   socket.emit('canvasState', canvasState);
 
   socket.on('disconnect', () => {
-    console.log('Client disconnected');
+    console.log('Client disconnected:', socket.id);
   });
-
-  // Handle placing a new image on the canvas
   socket.on('placeImage', (newImage) => {
-    // Add the new image to the canvas state
     canvasState.images.push(newImage);
-    // Broadcast the updated canvas state to all clients
+
+    console.log("New Image placed on the canvas:", newImage);
     broadcastCanvasState();
   });
 
-  // Handle moving an existing image on the canvas
   socket.on('moveImage', (updatedImage) => {
-    // Find the image in the canvas state and update its position
     const imageIndex = canvasState.images.findIndex((img) => img.id === updatedImage.id);
     if (imageIndex !== -1) {
       canvasState.images[imageIndex].x = updatedImage.x;
       canvasState.images[imageIndex].y = updatedImage.y;
-      // Broadcast the updated canvas state to all clients
       broadcastCanvasState();
+      console.log("Image moved on the canvas:", updatedImage);
     }
   });
 
-  // Handle removing an image from the canvas
+  // Removing Images
   socket.on('removeImage', (imageIdToRemove) => {
-    // Filter out the image to remove from the canvas state
     canvasState.images = canvasState.images.filter((img) => img.id !== imageIdToRemove);
-    // Broadcast the updated canvas state to all clients
+    // Broadcast canvas state to all clients
     broadcastCanvasState();
+    console.log("Image removed from the canvas:", imageIdToRemove);
   });
 });
+
+setInterval(() => backupCanvasState(canvasState), 60 * 60 * 1000); // 60 minutes * 60 seconds * 1000 milliseconds
 
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

@@ -4,27 +4,46 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>EpicSite!</title>
+  <link rel="stylesheet" href="./styles.css">
   <style>
     #canvas {
       position: relative;
-      width: 600px;
-      height: 400px;
-      border: 1px solid #000;
+      align-self: top;
+      width: 0px;
+      height: 0px;
     }
     .image {
       position: absolute;
+      cursor: pointer; /* Set cursor style */
+    }
+    .toptext {
+        right: 50%;
+        text-align: center;
+        font-size: 1.5em;
+    }
+    #vmarker
+    {
+        position: fixed;
+        bottom: 0;
+        right: 0;
+        font-size: 4vmin;
     }
   </style>
 </head>
 <body>
-  <h1>Bopl Place</h1>
+<div class="toptext">
+    <h1>Bopl Place</h1>
+</div>
   <div id="canvas"></div>
   <select id="imageList">
-    <option value="image1.jpg">Menu</option>
-    <option value="image2.jpg">Game Map</option>
+    <option>Spawnlist</option>
+    <option value="./images/Grenade.png">Grenade</option>
+    <option value="./images/TeslaCoil.png">Tesla Coil</option>
+    <option value="./images/Platform1.png">Small Platform</option>
+    <option value="./images/Rock.png">Rock</option>
     <!-- Add more options as needed -->
   </select>
-
+  <div id="vmarker">v0.1</div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.3.2/socket.io.js"></script>
   <script>
     const socket = io();
@@ -40,11 +59,24 @@
       imgElement.className = 'image';
       imgElement.style.left = `${image.x}px`;
       imgElement.style.top = `${image.y}px`;
-      imgElement.draggable = true;
-      imgElement.addEventListener('dragend', (event) => {
+      imgElement.addEventListener('dragstart', (event) => {
+        // Store the initial mouse position relative to the image position
+        event.dataTransfer.setDragImage(imgElement, imgElement.clientWidth / 2, imgElement.clientHeight / 2);
+        event.dataTransfer.effectAllowed = 'move';
+      });
+      imgElement.addEventListener('drag', (event) => {
+        // Update the image position to follow the mouse position
         const rect = canvas.getBoundingClientRect();
-        const x = event.clientX - rect.left;
-        const y = event.clientY - rect.top;
+        const x = event.clientX - rect.left - imgElement.clientWidth / 2;
+        const y = event.clientY - rect.top - imgElement.clientHeight / 2;
+        imgElement.style.left = `${x}px`;
+        imgElement.style.top = `-1000px`;
+      });
+      imgElement.addEventListener('dragend', (event) => {
+        // Calculate the final position of the image after dropping
+        const rect = canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left - imgElement.clientWidth / 2;
+        const y = event.clientY - rect.top - imgElement.clientHeight / 2;
         socket.emit('moveImage', { id: image.id, x, y });
       });
       imgElement.addEventListener('contextmenu', (event) => {
