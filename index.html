@@ -8,48 +8,46 @@
   <style>
     #canvas {
       position: relative;
-      align-self: top;
-      width: 0px;
-      height: 0px;
+      width: 100vw;
+      height: 100vh;
+      overflow: auto;
     }
     .image {
       position: absolute;
-      cursor: pointer; /* Set cursor style */
+      cursor: pointer;
     }
-    .toptext {
-        right: 50%;
-        text-align: center;
-        font-size: 1.5em;
-    }
-    #vmarker
-    {
-        position: fixed;
-        bottom: 0;
-        right: 0;
-        font-size: 4vmin;
+    .info-box {
+      position: absolute;
+      right: 50%;
+      background-color: rgba(255, 255, 255, 0);
+      padding: 0px;
+      border-radius: 5px;
+      font-size: 24px;
     }
   </style>
 </head>
 <body>
-<div class="toptext">
-    <h1>Bopl Place</h1>
+<div class="info-box">
+    <h1>Map Maker </h1>
+</div>
+<div class="morebetteryes">
+  <i class="fa-solid fa-bars"></i>
 </div>
   <div id="canvas"></div>
-  <select id="imageList">
-    <option>Spawnlist</option>
-    <option value="./images/Grenade.png">Grenade</option>
-    <option value="./images/TeslaCoil.png">Tesla Coil</option>
-    <option value="./images/Platform1.png">Small Platform</option>
-    <option value="./images/Rock.png">Rock</option>
-    <!-- Add more options as needed -->
-  </select>
-  <div id="vmarker">v0.1</div>
+  <div class="image-slider">
+    <img class="image-preview" src="./images/BigRect.png" alt="BigRect">
+    <img class="image-preview" src="./images/Circle.png" alt="Circle">
+    <img class="image-preview" src="./images/LongRect.png" alt="LongRect">
+    <img class="image-preview" src="./images/MediumCapsule.png" alt="MediumCapsule">
+    <img class="image-preview" src="./images/SmallCapsule.png" alt="SmallCapsule">
+  </div>
+  <div id="vmarker">v0.1 alpha</div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.3.2/socket.io.js"></script>
   <script>
     const socket = io();
 
     const canvas = document.getElementById('canvas');
-    const imageList = document.getElementById('imageList');
+    const imageList = document.querySelector('.image-slider');
 
     let images = {};
 
@@ -60,12 +58,10 @@
       imgElement.style.left = `${image.x}px`;
       imgElement.style.top = `${image.y}px`;
       imgElement.addEventListener('dragstart', (event) => {
-        // Store the initial mouse position relative to the image position
         event.dataTransfer.setDragImage(imgElement, imgElement.clientWidth / 2, imgElement.clientHeight / 2);
         event.dataTransfer.effectAllowed = 'move';
       });
       imgElement.addEventListener('drag', (event) => {
-        // Update the image position to follow the mouse position
         const rect = canvas.getBoundingClientRect();
         const x = event.clientX - rect.left - imgElement.clientWidth / 2;
         const y = event.clientY - rect.top - imgElement.clientHeight / 2;
@@ -73,7 +69,6 @@
         imgElement.style.top = `-1000px`;
       });
       imgElement.addEventListener('dragend', (event) => {
-        // Calculate the final position of the image after dropping
         const rect = canvas.getBoundingClientRect();
         const x = event.clientX - rect.left - imgElement.clientWidth / 2;
         const y = event.clientY - rect.top - imgElement.clientHeight / 2;
@@ -89,21 +84,21 @@
       images[image.id] = imgElement;
     }
 
-    imageList.addEventListener('change', () => {
-      const imageUrl = imageList.value;
-      const rect = canvas.getBoundingClientRect();
-      const x = rect.width / 2; // Place at the center of the canvas
-      const y = rect.height / 2; // Place at the center of the canvas
-      const newImage = { id: Date.now(), x, y, imageUrl };
-      addImage(newImage);
-      socket.emit('placeImage', newImage);
+    imageList.addEventListener('click', (event) => {
+      if (event.target.tagName === 'IMG') {
+        const imageUrl = event.target.src;
+        const rect = canvas.getBoundingClientRect();
+        const x = rect.width / 2; 
+        const y = rect.height / 2; 
+        const newImage = { id: Date.now(), x, y, imageUrl };
+        addImage(newImage);
+        socket.emit('placeImage', newImage);
+      }
     });
 
     socket.on('canvasState', (canvasState) => {
-      // Remove existing images from the canvas
       Object.values(images).forEach((img) => canvas.removeChild(img));
       images = {};
-      // Add images from the updated canvas state
       canvasState.images.forEach(addImage);
     });
   </script>
